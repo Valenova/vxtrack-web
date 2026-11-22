@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VXTRACK — Konfirmasi Berbagi Lokasi</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="consent-wrapper">
+    <div class="consent-header">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5 7L12.5 25H15.5L23 7H19.4L14 20.6L8.6 7H5Z" fill="#00D2FF"/>
+            <path d="M18.5 11.5L27 20.5M27 11.5L18.5 20.5" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="brand-name">VX<span>TRACK</span></div>
+          <div class="brand-tagline">Permintaan Izin Lokasi</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card consent-card">
+      <h2>Bagikan Lokasi Real-Time</h2>
+      <p class="brand-tagline" style="margin-top: 6px;">
+        ID Sesi: <strong id="displaySessionId" style="color: var(--text-main);">-</strong>
+      </p>
+
+      <div class="consent-info">
+        <strong>Informasi Transparansi:</strong>
+        <ul>
+          <li>Lokasi GPS Anda baru dikirim setelah Anda menekan tombol izin di bawah.</li>
+          <li>Pembaruan posisi berjalan selama halaman ini terbuka dan diizinkan.</li>
+          <li>Anda dapat menghentikan berbagi lokasi kapan saja lewat tombol merah.</li>
+        </ul>
+      </div>
+
+      <div id="statusMessage" style="margin: 14px 0; font-weight: 700; color: var(--accent);">
+        Status: Menunggu persetujuan Anda
+      </div>
+
+      <button id="startShareBtn" class="btn-success">Izinkan &amp; Mulai Berbagi Lokasi</button>
+      <button id="stopShareBtn" class="btn-danger" style="display: none;">Berhenti Berbagi Lokasi</button>
+    </div>
+  </div>
+
+  <script type="module" src="js/sharer.js"></script>
+</body>
+</html>
