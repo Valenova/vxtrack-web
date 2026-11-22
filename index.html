@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VXTRACK — Real-Time Location Sharing</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5 7L12.5 25H15.5L23 7H19.4L14 20.6L8.6 7H5Z" fill="#00D2FF"/>
+            <path d="M18.5 11.5L27 20.5M27 11.5L18.5 20.5" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="brand-name">VX<span>TRACK</span></div>
+          <div class="brand-tagline">Live Location &amp; Consent Tracker</div>
+        </div>
+      </div>
+      <span id="connectionStatus" class="badge badge-waiting">Siap</span>
+    </header>
+
+    <div class="card">
+      <h2>1. Buat Tautan Berbagi Lokasi</h2>
+      <div class="input-group">
+        <input type="tel" id="phoneInput" placeholder="Masukkan Nomor HP (cth: 08123456789)" required>
+        <button id="createLinkBtn" class="btn-primary">Buat Tautan</button>
+      </div>
+
+      <div id="linkResult" class="link-box">
+        <p>Kirim tautan persetujuan ini ke pemilik HP:</p>
+        <input type="text" id="generatedUrl" readonly>
+        <div class="link-actions">
+          <button id="copyBtn" class="btn-primary">Salin Tautan</button>
+          <button id="waShareBtn" class="btn-success" style="width: auto; padding: 11px 16px; font-size: 0.92rem;">
+            Kirim via WhatsApp
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="status-bar">
+        <div>
+          <strong>Target:</strong> <span id="targetPhone">-</span> |
+          <strong>Status:</strong> <span id="sessionStatus" class="badge badge-waiting">Menunggu Tautan</span>
+        </div>
+        <div id="lastUpdate" class="brand-tagline">Update: -</div>
+      </div>
+
+      <div id="map"></div>
+      <p class="helper-note">
+        *Garis biru pada peta menunjukkan riwayat pergerakan lokasi yang telah disetujui pemilik HP.
+      </p>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module" src="js/tracker.js"></script>
+</body>
+</html>
