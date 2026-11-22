@@ -7,6 +7,7 @@ const shareLinkInput = document.getElementById("shareLink");
 const copyBtn = document.getElementById("copyBtn");
 const waBtn = document.getElementById("waBtn");
 const statusText = document.getElementById("statusText");
+const topStatus = document.getElementById("topStatus");
 
 let map, marker, polyline;
 
@@ -36,18 +37,25 @@ if (createBtn) {
     const link = `${cleanBase}share.html?session=${sessionId}`;
 
     if (shareLinkInput) shareLinkInput.value = link;
+    if (topStatus) topStatus.textContent = "Membuat...";
 
-    await set(ref(db, "sessions/" + sessionId), {
-      phone,
-      status: "Menunggu Persetujuan",
-      createdAt: Date.now()
-    });
+    try {
+      await set(ref(db, "sessions/" + sessionId), {
+        phone,
+        status: "Menunggu Persetujuan",
+        createdAt: Date.now()
+      });
 
-    if (statusText) {
-      statusText.innerHTML = `Target: <b>${phone}</b> | Status: Menunggu Persetujuan`;
+      if (topStatus) topStatus.textContent = "Aktif";
+      if (statusText) {
+        statusText.innerHTML = `Target: <b>${phone}</b> | Status: Menunggu Persetujuan`;
+      }
+
+      listenSession(sessionId, phone);
+    } catch (err) {
+      if (topStatus) topStatus.textContent = "Error DB";
+      alert("Gagal simpan ke Firebase: " + (err?.message || err));
     }
-
-    listenSession(sessionId, phone);
   });
 }
 
