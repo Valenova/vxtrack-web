@@ -3,47 +3,117 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VXTRACK - Live Location & Consent Tracker</title>
+  <title>VXTRACK - Live Location & Consent Command</title>
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <div class="logo">VX</div>
-      <div>
-        <h1>VXTRACK</h1>
-        <p>Live Location &amp; Consent Tracker</p>
-      </div>
-    </div>
-    <span id="topStatus">Siap</span>
-  </header>
+  <!-- Notifikasi Berhasil / Gagal -->
+  <div id="notifBanner" class="notif hidden" role="status" aria-live="polite">
+    <span id="notifText"></span>
+    <button type="button" id="notifClose" class="notif-close" aria-label="Tutup">&times;</button>
+  </div>
 
-  <main>
-    <section class="card">
-      <h2>1. Buat Tautan Berbagi Lokasi</h2>
-      <div class="row">
-        <input type="text" id="phoneInput" placeholder="Masukkan Nomor HP (cth: 0812...)" />
-        <button type="button" id="createLinkBtn">Buat Tautan</button>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo-vx" aria-hidden="true">
+          <svg viewBox="0 0 48 48" width="38" height="38" fill="none">
+            <defs>
+              <linearGradient id="vxGrad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#00e5ff" />
+                <stop offset="55%" stop-color="#2563eb" />
+                <stop offset="100%" stop-color="#06b6d4" />
+              </linearGradient>
+            </defs>
+            <rect x="3" y="3" width="42" height="42" rx="12" fill="#071124" stroke="url(#vxGrad)" stroke-width="2.2" />
+            <path d="M11 14L18.5 34L26 14" stroke="url(#vxGrad)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M25 18L37 32M37 18L25 32" stroke="#67e8f9" stroke-width="3" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title-row">
+            <h1>VXTRACK</h1>
+            <span class="badge-live">LIVE</span>
+          </div>
+          <p>Location &amp; Consent Telemetry</p>
+        </div>
       </div>
+      <span id="topStatus" class="status-pill">Siap</span>
+    </header>
 
-      <p class="label">Kirim tautan persetujuan ini ke pemilik HP:</p>
-      <div class="row">
-        <input type="text" id="shareLink" readonly placeholder="Tautan akan muncul di sini..." />
-      </div>
+    <main>
+      <section class="card">
+        <div class="card-head">
+          <h2>1. Buat Tautan Berbagi Lokasi</h2>
+          <span class="sub-tag">Consent Required</span>
+        </div>
 
-      <div class="row">
-        <button type="button" id="copyBtn">Salin Tautan</button>
-        <button type="button" id="waBtn">Kirim via WhatsApp</button>
-      </div>
-    </section>
+        <div class="row">
+          <input type="tel" id="phoneInput" placeholder="Masukkan Nomor HP Target (cth: 0838...)" autocomplete="tel" />
+          <button type="button" id="createLinkBtn" class="btn-primary">Buat Tautan</button>
+        </div>
 
-    <section class="card">
-      <div id="statusText" class="status-box">Target: - | Status: Menunggu Tautan</div>
-      <div id="map"></div>
-      <p class="note">*Garis biru pada peta menunjukkan riwayat pergerakan lokasi yang telah disetujui pemilik HP.</p>
-    </section>
-  </main>
+        <p class="label">Kirim tautan persetujuan ini ke pemilik HP:</p>
+        <div class="row">
+          <input type="text" id="shareLink" readonly placeholder="Tautan persetujuan akan muncul di sini..." />
+        </div>
+
+        <div class="row actions-row">
+          <button type="button" id="copyBtn" class="btn-secondary">Salin Tautan</button>
+          <button type="button" id="waBtn" class="btn-wa">Kirim via WhatsApp</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>2. Peta &amp; Riwayat Lokasi</h2>
+          <span id="coordBadge" class="coord-pill">Lat: - | Lng: -</span>
+        </div>
+
+        <div id="statusText" class="status-box">Target: - | Status: Menunggu Tautan</div>
+        <div id="map"></div>
+        <p class="note">*Garis biru elektrik menunjukkan riwayat pergerakan lokasi yang telah disetujui pemilik HP.</p>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>3. Live Feed &amp; Info Perangkat Target</h2>
+          <span id="connState" class="conn-badge offline">Belum Terhubung</span>
+        </div>
+
+        <div class="telemetry-grid">
+          <div class="tele-box">
+            <span class="tele-label">Koordinat GPS</span>
+            <strong id="teleCoords">-</strong>
+          </div>
+          <div class="tele-box">
+            <span class="tele-label">Akurasi / Kecepatan</span>
+            <strong id="teleAccuracy">-</strong>
+          </div>
+          <div class="tele-box">
+            <span class="tele-label">Perangkat / Browser</span>
+            <strong id="teleDevice">Menunggu data...</strong>
+          </div>
+          <div class="tele-box">
+            <span class="tele-label">Update Terakhir</span>
+            <strong id="teleUpdated">-</strong>
+          </div>
+        </div>
+
+        <div class="stream-box">
+          <div class="stream-header">
+            <span>Live Video / Kamera Target (Jika Diizinkan)</span>
+            <span id="camStatus" class="cam-tag">Standby</span>
+          </div>
+          <video id="remoteVideo" autoplay playsinline controls muted></video>
+          <p id="streamNote" class="note">
+            *Menampilkan siaran video langsung bila sesi target mengaktifkan izin kamera &amp; mengirim stream.
+          </p>
+        </div>
+      </section>
+    </main>
+  </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="js/tracker.js"></script>
