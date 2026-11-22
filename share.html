@@ -1,52 +1,139 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VXTRACK — Konfirmasi Berbagi Lokasi</title>
-  <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VXTRACK - Permintaan Izin Lokasi</title>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <div class="consent-wrapper">
-    <div class="consent-header">
+  <div class="app-shell">
+    <header class="topbar">
       <div class="brand">
-        <div class="brand-logo" aria-hidden="true">
-          <svg width="26" height="26" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5 7L12.5 25H15.5L23 7H19.4L14 20.6L8.6 7H5Z" fill="#00D2FF"/>
-            <path d="M18.5 11.5L27 20.5M27 11.5L18.5 20.5" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/>
-          </svg>
-        </div>
-        <div class="brand-text">
-          <div class="brand-name">VX<span>TRACK</span></div>
-          <div class="brand-tagline">Permintaan Izin Lokasi</div>
+        <div class="logo-vx" aria-hidden="true">VX</div>
+        <div>
+          <h1>VXTRACK</h1>
+          <p>Permintaan Izin Lokasi</p>
         </div>
       </div>
-    </div>
+      <span id="shareBadge" class="status-pill">Menunggu</span>
+    </header>
 
-    <div class="card consent-card">
-      <h2>Bagikan Lokasi Real-Time</h2>
-      <p class="brand-tagline" style="margin-top: 6px;">
-        ID Sesi: <strong id="displaySessionId" style="color: var(--text-main);">-</strong>
-      </p>
+    <main>
+      <section class="card">
+        <h2>Bagikan Lokasi Real-Time</h2>
+        <p class="label">ID Sesi: <strong id="sessionDisplay">Memuat...</strong></p>
 
-      <div class="consent-info">
-        <strong>Informasi Transparansi:</strong>
-        <ul>
-          <li>Lokasi GPS Anda baru dikirim setelah Anda menekan tombol izin di bawah.</li>
-          <li>Pembaruan posisi berjalan selama halaman ini terbuka dan diizinkan.</li>
-          <li>Anda dapat menghentikan berbagi lokasi kapan saja lewat tombol merah.</li>
-        </ul>
-      </div>
+        <div class="status-box">
+          <strong>Informasi Transparansi:</strong>
+          <ul style="margin: 8px 0 0 18px; line-height: 1.55;">
+            <li>Lokasi GPS baru dikirim setelah Anda menekan tombol izin di bawah.</li>
+            <li>Pembaruan posisi berjalan selama halaman ini terbuka dan diizinkan.</li>
+            <li>Anda dapat menghentikan berbagi lokasi kapan saja lewat tombol berhenti.</li>
+          </ul>
+        </div>
 
-      <div id="statusMessage" style="margin: 14px 0; font-weight: 700; color: var(--accent);">
-        Status: Menunggu persetujuan Anda
-      </div>
+        <p id="consentStatus" class="status-box">Status: Menunggu persetujuan Anda</p>
 
-      <button id="startShareBtn" class="btn-success">Izinkan &amp; Mulai Berbagi Lokasi</button>
-      <button id="stopShareBtn" class="btn-danger" style="display: none;">Berhenti Berbagi Lokasi</button>
-    </div>
+        <div class="row actions-row">
+          <button type="button" id="allowBtn" class="btn-primary">Izinkan &amp; Mulai Berbagi Lokasi</button>
+          <button type="button" id="stopBtn" class="btn-secondary" style="background:#7f1d1d;border-color:#ef4444;">Hentikan</button>
+        </div>
+
+        <p id="gpsInfo" class="note">Koordinat: -</p>
+      </section>
+    </main>
   </div>
 
-  <script type="module" src="js/sharer.js"></script>
+  <script type="module">
+    import { db } from "./js/firebase-config.js";
+    import { ref, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    const params = new URLSearchParams(window.location.search);
+    let sessionId = (params.get("session") || "").trim();
+    if (!sessionId) {
+      sessionId = "vx_manual_" + Math.random().toString(36).substring(2, 7);
+    }
+
+    const sessionDisplay = document.getElementById("sessionDisplay");
+    const consentStatus = document.getElementById("consentStatus");
+    const shareBadge = document.getElementById("shareBadge");
+    const allowBtn = document.getElementById("allowBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const gpsInfo = document.getElementById("gpsInfo");
+
+    if (sessionDisplay) sessionDisplay.textContent = sessionId;
+
+    let watchId = null;
+
+    if (allowBtn) {
+      allowBtn.disabled = false;
+      allowBtn.style.opacity = "1";
+
+      allowBtn.addEventListener("click", () => {
+        if (!navigator.geolocation) {
+          consentStatus.textContent = "Status: Browser tidak mendukung GPS/Geolocation.";
+          return;
+        }
+
+        consentStatus.textContent = "Status: Meminta izin lokasi dari browser...";
+        shareBadge.textContent = "Meminta Izin";
+
+        if (watchId !== null) {
+          navigator.geolocation.clearWatch(watchId);
+        }
+
+        watchId = navigator.geolocation.watchPosition(
+          async (pos) => {
+            const { latitude, longitude, accuracy, speed } = pos.coords;
+            shareBadge.textContent = "Aktif";
+            consentStatus.textContent = "Status: Lokasi aktif dibagikan secara real-time.";
+            gpsInfo.textContent = `Koordinat: ${latitude.toFixed(6)}, ${longitude.toFixed(6)} (±${Math.round(accuracy)} m)`;
+
+            try {
+              await update(ref(db, "sessions/" + sessionId), {
+                connected: true,
+                status: "Berbagi Lokasi Aktif",
+                lat: latitude,
+                lng: longitude,
+                accuracy: accuracy || 0,
+                speed: speed || 0,
+                device: navigator.userAgent,
+                updatedAt: Date.now()
+              });
+            } catch (e) {
+              gpsInfo.textContent += " | Gagal kirim DB: " + (e?.message || e);
+            }
+          },
+          (err) => {
+            shareBadge.textContent = "Ditolak / Error";
+            consentStatus.textContent = "Status: Izin lokasi ditolak atau GPS mati (" + (err?.message || "Error") + ").";
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 2000
+          }
+        );
+      });
+    }
+
+    if (stopBtn) {
+      stopBtn.addEventListener("click", async () => {
+        if (watchId !== null) {
+          navigator.geolocation.clearWatch(watchId);
+          watchId = null;
+        }
+        shareBadge.textContent = "Dihentikan";
+        consentStatus.textContent = "Status: Berbagi lokasi dihentikan.";
+        try {
+          await update(ref(db, "sessions/" + sessionId), {
+            status: "Dihentikan oleh Pengguna",
+            updatedAt: Date.now()
+          });
+        } catch (e) {}
+      });
+    }
+  </script>
 </body>
 </html>
